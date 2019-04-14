@@ -144,9 +144,8 @@ namespace WebAPI
                     getStr = reader.ReadToEnd();
                 }
             }
-            catch (Exception e)
+            catch
             {
-                getStr = "";
             }
         }
 
