@@ -18,6 +18,8 @@ using WebAPI;
 using System.Data.SQLite;
 using System.Data;
 using SciChart.Charting.ChartModifiers;
+using SciChart.Data.Model;
+using SciChart.Charting.Visuals.Annotations;
 
 namespace car_monitor
 {
@@ -31,6 +33,10 @@ namespace car_monitor
         SQLiteConnection cn = new SQLiteConnection("data source=" + @"C:\Users\ArtisticZhao\Desktop\car_relay_db.db");
         
         bool is_first_time = true;
+
+        int rising_p = 0;
+        int stable_p = 0;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -61,6 +67,7 @@ namespace car_monitor
 
         private void Load_UI_Item()
         {
+            this.Zoom_btn.IsEnabled = false;
             // set zoom mode on xdriection by mouse wheel
             MouseWheelZoomModifier mwz = new MouseWheelZoomModifier();
             mwz.XyDirection = SciChart.Charting.XyDirection.XDirection;
@@ -203,30 +210,33 @@ namespace car_monitor
 
         private void plot(double[] data_d)
         {
-            this.calc_Q(data_d);
-            Dispatcher.BeginInvoke(new Action(() =>
+
+            this.status_text.Text = "recv all data, processing";
+            var lineData = new XyDataSeries<double, double>();
+            double max_y = 0;
+            for (int i = 0; i < data_d.Length; i++)
             {
-                this.status_text.Text = "recv all data, processing";
-                var lineData = new XyDataSeries<double, double>();
-
-                for (int i = 0; i < data_d.Length; i++)
+                if (data_d[i] > max_y)
                 {
-                    lineData.Append(i, data_d[i]);
+                    max_y = data_d[i];
                 }
-                // Assign dataseries to RenderSeries
-                LineSeries.DataSeries = lineData;
-
-                this.status_text.Text = "ready";
-
-            }));
+                lineData.Append(i, data_d[i]);
+            }
+            // Assign dataseries to RenderSeries
+            LineSeries.DataSeries = lineData;
+            this.sciChartSurface.YAxis.VisibleRange = new DoubleRange(-0.5, max_y + 0.5); // zoom out on Y // 
+            this.status_text.Text = "ready";
+            // auto zoom in
+            this.sciChartSurface.XAxis.VisibleRange = new DoubleRange(0, data_d.Length-1);
             this.calc_Q(data_d);
+            this.Zoom_btn.IsEnabled = true;
         }
 
         private double[] convert_to_int(byte[] data)
         {
             // debug log
-            string hex = BitConverter.ToString(data).Replace("-", " ");
-            Console.WriteLine(hex);
+//             string hex = BitConverter.ToString(data).Replace("-", " ");
+//             Console.WriteLine(hex);
 
             // frame header c0 AA AA c0  //AAAA 
             byte[] header = data.Take(3).ToArray();
@@ -293,7 +303,7 @@ namespace car_monitor
             Console.WriteLine("high level = {0} low level = {1}", level_high, level_low);
 
             // find rising point
-            int rising_p = 0;
+            
             for (int i=0; i<data.Length; i++)
             {
                 // 向后均值滤波
@@ -304,7 +314,7 @@ namespace car_monitor
                     avg_flt_sum += data[i + j];
                     avg_flt_count++;
                 }
-                if((avg_flt_sum/ avg_flt_count) > level_low + 0.05)
+                if((avg_flt_sum/ avg_flt_count) > level_low + 0.2)
                 {
                     // find rise point
                     rising_p = i;
@@ -313,7 +323,7 @@ namespace car_monitor
             }
 
             // find stable point 
-            int stable_p = 0;
+            
             for (int p = data.Length - 15; p > rising_p; p--)
             {
                 double avg_flt_sum = 0;
@@ -321,9 +331,9 @@ namespace car_monitor
                 {
                     avg_flt_sum += data[p + j]; ;
                 }
-                if ((avg_flt_sum / 4) < (level_high - 0.05))//认为寻找到上电燃弧终点
+                if ((avg_flt_sum / 4) < (level_high - 0.2))//认为寻找到上电燃弧终点
                 {
-                    stable_p = p;
+                    stable_p = p+1;
                     break;
                 }
             }
@@ -331,11 +341,21 @@ namespace car_monitor
             Console.WriteLine("start at {0}, end at {1}", rising_p, stable_p);
 
             // draw range
-            Dispatcher.BeginInvoke(new Action(() =>
+            this.sciChartSurface.Annotations.Clear();
+            this.sciChartSurface.Annotations.Add(new BoxAnnotation()
             {
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#55279B27")),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#55279B27")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                X1 = rising_p,
+                X2 = stable_p,
+                Y1 = level_low,
+                Y2 = level_high,
+                IsEditable = false,
+            });
 
-            }));
-
+            
         }
 
         // **************算法结束************//
@@ -387,6 +407,12 @@ namespace car_monitor
             sr.Read();
             byte[] outputb = Convert.FromBase64String(sr.GetString(0));  // decode base64
             plot(convert_to_int(outputb));  // redraw data
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            // auto zoom in
+            this.sciChartSurface.XAxis.VisibleRange = new DoubleRange(rising_p, stable_p);
         }
     }
 }
