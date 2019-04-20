@@ -20,6 +20,7 @@ using System.Data;
 using SciChart.Charting.ChartModifiers;
 using SciChart.Data.Model;
 using SciChart.Charting.Visuals.Annotations;
+using System.Threading;
 
 namespace car_monitor
 {
@@ -33,9 +34,10 @@ namespace car_monitor
         SQLiteConnection cn = new SQLiteConnection("data source=" + @"C:\Users\ArtisticZhao\Desktop\car_relay_db.db");
         
         bool is_first_time = true;
-
+        int cs=5243;
         int rising_p = 0;
         int stable_p = 0;
+        int last_length = 0;
 
         public MainWindow()
         {
@@ -60,7 +62,7 @@ namespace car_monitor
             cmd.Parameters.Add("log_id", DbType.Int32).Value = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds; ;
             cmd.Parameters.Add("dev_id", DbType.String).Value = dev_id;
             cmd.Parameters.Add("relay_id", DbType.String).Value = "lab_relay_24v";
-            cmd.Parameters.Add("recv_time", DbType.String).Value = DateTime.Now.ToLocalTime().ToString(); ;
+            cmd.Parameters.Add("recv_time", DbType.String).Value = DateTime.Now.ToLocalTime().ToString();
             cmd.Parameters.Add("recv_data", DbType.String).Value = Convert.ToBase64String(data); // to base64  byte[] outputb = Convert.FromBase64String("ztKwrsTj");
             cmd.ExecuteNonQuery();
         }
@@ -68,6 +70,7 @@ namespace car_monitor
         private void Load_UI_Item()
         {
             this.Zoom_btn.IsEnabled = false;
+            this.ZoomOut_btn.IsEnabled = false;
             // set zoom mode on xdriection by mouse wheel
             MouseWheelZoomModifier mwz = new MouseWheelZoomModifier();
             mwz.XyDirection = SciChart.Charting.XyDirection.XDirection;
@@ -139,10 +142,18 @@ namespace car_monitor
                         if (b[0] == 0x04)//连接消息
                         {
                             System.Console.WriteLine("设备已连接");
+                            Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                this.LED.Fill = new SolidColorBrush(Colors.Green);
+                            }));
                         }
                         else if (b[0] == 0x05)////断开消息
                         {
                            System.Console.WriteLine("设备断开连接");
+                            Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                this.LED.Fill = new SolidColorBrush(Colors.Red);
+                            }));
                         }
                         else if (b[0] == 0x06)//信息记录
                         {
@@ -168,9 +179,12 @@ namespace car_monitor
                             if (b[b.Length-1]== 0x0A)
                             {
                                 // end of package
+                                
                                 List<byte> data = new List<byte>();
                                 Dispatcher.BeginInvoke(new Action(() =>
                                 {
+                                    this.cs++;
+                                    this.move_ci.Text = this.cs.ToString();
                                     this.status_text.Text = "all message recved ploting...";
 
                                 }));
@@ -186,14 +200,10 @@ namespace car_monitor
                                 Dispatcher.BeginInvoke(new Action(() =>
                                 {
                                     this.status_text.Text = "recv all data, processing";
-                                    var lineData = new XyDataSeries<double, double>();
-                                    
-                                    for (int i = 0; i < data_d.Length; i++)
+                                    if(this.isrealtime_mode.IsChecked == true)
                                     {
-                                        lineData.Append(i, data_d[i]);
+                                        plot(data_d, DateTime.Now.ToLocalTime().ToString());
                                     }
-                                    // Assign dataseries to RenderSeries
-                                    LineSeries.DataSeries = lineData;
                                     
                                     this.status_text.Text = "ready";
 
@@ -208,12 +218,11 @@ namespace car_monitor
             }
         }
 
-        private void plot(double[] data_d)
+        private void plot(double[] data_d, string recv_time)
         {
-
-            this.status_text.Text = "recv all data, processing";
             var lineData = new XyDataSeries<double, double>();
             double max_y = 0;
+            this.last_length = data_d.Length;
             for (int i = 0; i < data_d.Length; i++)
             {
                 if (data_d[i] > max_y)
@@ -225,11 +234,12 @@ namespace car_monitor
             // Assign dataseries to RenderSeries
             LineSeries.DataSeries = lineData;
             this.sciChartSurface.YAxis.VisibleRange = new DoubleRange(-0.5, max_y + 0.5); // zoom out on Y // 
-            this.status_text.Text = "ready";
+            this.recv_time_edit.Text = recv_time.Substring(4, recv_time.Length-4);
             // auto zoom in
             this.sciChartSurface.XAxis.VisibleRange = new DoubleRange(0, data_d.Length-1);
             this.calc_Q(data_d);
             this.Zoom_btn.IsEnabled = true;
+            this.ZoomOut_btn.IsEnabled = true;
         }
 
         private double[] convert_to_int(byte[] data)
@@ -339,7 +349,14 @@ namespace car_monitor
             }
 
             Console.WriteLine("start at {0}, end at {1}", rising_p, stable_p);
-
+            double sample_time = 1.0 / 40000;
+            double fire_Q = 0;
+            for(int i = rising_p; i<stable_p; i++)
+            {
+                fire_Q += data[i] * sample_time;
+            }
+            fire_Q = fire_Q * 10000; // zoom
+            // **************算法结束************//
             // draw range
             this.sciChartSurface.Annotations.Clear();
             this.sciChartSurface.Annotations.Add(new BoxAnnotation()
@@ -355,10 +372,15 @@ namespace car_monitor
                 IsEditable = false,
             });
 
+            this.current_Q.Text = fire_Q.ToString();
+
             
         }
 
-        // **************算法结束************//
+        private void write_file(string[] lines)
+        {
+            System.IO.File.WriteAllLines(@"C:\Users\ArtisticZhao\Desktop\data.txt", lines);
+        }
 
         private void Dev_select_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -384,7 +406,7 @@ namespace car_monitor
                 SQLiteCommand cmd = new SQLiteCommand();
                 cmd.Connection = cn;
                 // check all data : SELECT recv_time FROM log;
-                cmd.CommandText = "SELECT recv_time FROM log ";
+                cmd.CommandText = "SELECT recv_time FROM log ORDER BY recv_time DESC ";
                 SQLiteDataReader sr = cmd.ExecuteReader();
                 while (sr.Read())
                 {
@@ -402,11 +424,12 @@ namespace car_monitor
             cmd.Connection = cn;
             // find data SELECT recv_data FROM log WHERE recv_time = "2019/4/14 16:10:26";
             string select_data = this.data_id.SelectedItem.ToString();
-            cmd.CommandText = "SELECT recv_data FROM log WHERE recv_time = \"" + select_data + "\"";
+            cmd.CommandText = "SELECT recv_data, recv_time FROM log WHERE recv_time = \"" + select_data + "\"";
             SQLiteDataReader sr = cmd.ExecuteReader();
             sr.Read();
             byte[] outputb = Convert.FromBase64String(sr.GetString(0));  // decode base64
-            plot(convert_to_int(outputb));  // redraw data
+            
+            plot(convert_to_int(outputb), sr.GetString(1));  // redraw data
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -414,5 +437,13 @@ namespace car_monitor
             // auto zoom in
             this.sciChartSurface.XAxis.VisibleRange = new DoubleRange(rising_p, stable_p);
         }
+
+        private void ZoomOut_btn_Click(object sender, RoutedEventArgs e)
+        {
+            // zoom out
+            this.sciChartSurface.XAxis.VisibleRange = new DoubleRange(0, last_length);
+        }
+
+       
     }
 }

@@ -53,17 +53,20 @@
         <ComboBox x:Name="relay_id" Grid.Column="1" HorizontalAlignment="Left" Margin="10,106,0,0" VerticalAlignment="Top" Width="120" Height="21"/>
         <Label Content="接触器编号" Grid.Column="1" HorizontalAlignment="Left" Margin="10,81,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="83"/>
         <Label Content="数传状态" Grid.Column="1" HorizontalAlignment="Left" Margin="10,56,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="62"/>
-        <Ellipse Grid.Column="1" Fill="Red" HorizontalAlignment="Left" Height="16" Margin="77,61,0,0" Stroke="Black" VerticalAlignment="Top" Width="16" RenderTransformOrigin="0.062,0.188"/>
+        <Ellipse x:Name="LED" Grid.Column="1" Fill="Red" HorizontalAlignment="Left" Height="16" Margin="77,61,0,0" Stroke="Black" VerticalAlignment="Top" Width="16" RenderTransformOrigin="0.062,0.188"/>
         <ComboBox x:Name="data_id" Grid.Column="1" HorizontalAlignment="Left" Margin="10,182,0,0" VerticalAlignment="Top" Width="120" Height="21" DropDownOpened="Data_id_DropDownOpened" SelectionChanged="Data_id_SelectionChanged"/>
         <Label Content="数据编号" Grid.Column="1" HorizontalAlignment="Left" Margin="10,157,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="83"/>
         <CheckBox x:Name="isrealtime_mode" Content="实时模式" Grid.Column="1" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" Foreground="White" Height="15" Width="83"/>
-        <TextBox Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="10,314,0,0" TextWrapping="Wrap" Text="5243" VerticalAlignment="Top" Width="120"/>
+        <TextBox x:Name="move_ci" Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="10,314,0,0" TextWrapping="Wrap" Text="5243" VerticalAlignment="Top" Width="120"/>
         <Label Content="继电器动作次数" Grid.Column="1" HorizontalAlignment="Left" Margin="5,284,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="100"/>
         <TextBox Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="10,375,0,0" TextWrapping="Wrap" Text="495876" VerticalAlignment="Top" Width="120"/>
-        <Label Content="继电器预计动作次数" Grid.Column="1" HorizontalAlignment="Left" Margin="5,345,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="115"/>
-        <TextBox Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="10,249,0,0" TextWrapping="Wrap" Text="251" VerticalAlignment="Top" Width="120"/>
+        <Label Content="继电器预计动作次数" Grid.Column="1" HorizontalAlignment="Left" Margin="5,345,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="125"/>
+        <TextBox x:Name="current_Q" Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="10,249,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" />
         <Label Content="当前燃弧电量" Grid.Column="1" HorizontalAlignment="Left" Margin="5,219,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="100"/>
         <Rectangle Fill="#FF1C1C1E" HorizontalAlignment="Left" Height="47" Margin="327,295,0,0" Stroke="#FF1C021E" VerticalAlignment="Top" Width="270"/>
-        <Button x:Name="Zoom_btn" Content="AutoZoom" HorizontalAlignment="Left" Margin="370,309,0,0" VerticalAlignment="Top" Width="75" Click="Button_Click"/>
+        <Button x:Name="Zoom_btn" Content="AutoZoom" HorizontalAlignment="Left" Margin="350,321,0,0" VerticalAlignment="Top" Width="75" Click="Button_Click"/>
+        <Button x:Name="ZoomOut_btn" Content="Zoom Out" HorizontalAlignment="Left" Margin="430,321,0,0" VerticalAlignment="Top" Width="75" Click="ZoomOut_btn_Click"/>
+        <TextBox x:Name="recv_time_edit" HorizontalAlignment="Left" Height="16" Margin="400,304,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="105" />
+        <Label Content="显示时间" HorizontalAlignment="Left" Margin="344,300,0,0" VerticalAlignment="Top" Background="{x:Null}" Foreground="White" Height="25" Width="59"/>
     </Grid>
 </Window>
